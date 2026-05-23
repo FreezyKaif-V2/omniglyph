@@ -4,7 +4,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
 from gi.repository import Gtk, Adw
-
+import os
 from window import *
 from ui import *
 
@@ -12,9 +12,16 @@ class AppWindow(Adw.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app)
 
+        self.main_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL
+        )
+
         self._setup_overlay_window()
         self._add_escape_close()
         self._build_layout()
+        
+        self.char_view = CharView(self)
+        self.main_box.append(self.char_view)
 
     def _setup_overlay_window(self):
         is_wayland = (os.environ.get("XDG_SESSION_TYPE") == "wayland")
@@ -66,16 +73,13 @@ class AppWindow(Adw.ApplicationWindow):
         self.set_title("OmniGlyph")
         self.set_default_size(450, 600)
 
-        main_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL
-        )
 
-        main_box.set_spacing(10)
+        self.main_box.set_spacing(10)
 
-        self.set_content(main_box)
+        self.set_content(self.main_box)
 
         header_bar = AppHeader()
-        main_box.append(header_bar)
+        self.main_box.append(header_bar)
 
         box = Gtk.Box( orientation=Gtk.Orientation.VERTICAL )
 
@@ -91,7 +95,8 @@ class AppWindow(Adw.ApplicationWindow):
 
         box.append(search)
 
-        main_box.append(box)
+        self.main_box.append(box)
+
 
     def _add_escape_close(self):
         controller = Gtk.EventControllerKey()
