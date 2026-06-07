@@ -75,7 +75,7 @@ class AppWindow(Adw.ApplicationWindow):
         self.set_title("OmniGlyph")
         self.set_default_size(450, 600)
 
-        self.main_box.set_spacing(10)
+        self.main_box.set_spacing(0)
 
         self.set_content(self.main_box)
 
@@ -83,14 +83,12 @@ class AppWindow(Adw.ApplicationWindow):
         self.main_box.append(header_bar)
 
         search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-        search_box.set_margin_top(24)
-        search_box.set_margin_bottom(24)
+        search_box.set_margin_top(12)
+        search_box.set_margin_bottom(8)
         search_box.set_margin_start(12)
         search_box.set_margin_end(12)
 
         self.search = create_search_bar(on_change=self.char_view.filter_entries)
-
         self.search.set_hexpand(True)
         self.search.set_halign(Gtk.Align.FILL)
 
@@ -110,20 +108,12 @@ class AppWindow(Adw.ApplicationWindow):
 
     def _focus_search(self):
         self.search.grab_focus()
-
         self.search.select_region(
             0,
             len(self.search.get_text()),
         )
 
-    def _on_key_pressed(
-        self,
-        controller,
-        keyval,
-        keycode,
-        state,
-    ):
-        # Focus search on pressing '/'
+    def _on_key_pressed(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_slash:
             self._focus_search()
             return True
@@ -131,14 +121,11 @@ class AppWindow(Adw.ApplicationWindow):
         if keyval != Gdk.KEY_Escape:
             return False
 
-        # If search is focused, unfocus it on ESC
         if self.get_focus() is self.search:
             self.set_focus(None)
             return True
 
-        # Otherwise ESC will close window
         self.close()
-
         return True
 
 
