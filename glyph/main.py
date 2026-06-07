@@ -4,9 +4,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Gtk4LayerShell", "1.0")
 
-from gi.repository import Gtk, Adw
+from gi.repository import Gtk, Adw, Gdk
 from gi.repository import Gtk4LayerShell
-
 
 import os
 from ui import *
@@ -19,11 +18,11 @@ class AppWindow(Adw.ApplicationWindow):
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         self._setup_overlay_window()
-        self._add_escape_close()
 
         self.char_view = CharView(self)
 
         self._build_layout()
+        self._setup_keyboard_shortcuts()
 
         self.main_box.append(self.char_view)
 
@@ -83,39 +82,64 @@ class AppWindow(Adw.ApplicationWindow):
         header_bar = AppHeader()
         self.main_box.append(header_bar)
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        box.set_margin_top(24)
-        box.set_margin_bottom(24)
-        box.set_margin_start(12)
-        box.set_margin_end(12)
+        search_box.set_margin_top(24)
+        search_box.set_margin_bottom(24)
+        search_box.set_margin_start(12)
+        search_box.set_margin_end(12)
 
-        search = create_search_bar(on_change=self.char_view.filter_entries)
+        self.search = create_search_bar(on_change=self.char_view.filter_entries)
 
-        search.set_hexpand(True)
-        search.set_halign(Gtk.Align.FILL)
+        self.search.set_hexpand(True)
+        self.search.set_halign(Gtk.Align.FILL)
 
-        box.append(search)
+        search_box.append(self.search)
 
-        self.main_box.append(box)
+        self.main_box.append(search_box)
 
-    def _add_escape_close(self):
+    def _setup_keyboard_shortcuts(self):
         controller = Gtk.EventControllerKey()
-
-        def on_key(_, keyval, *_args):
-            # Esc key
-            if keyval == 65307:
-                self.close()
-                return True
-
-            return False
 
         controller.connect(
             "key-pressed",
-            on_key,
+            self._on_key_pressed,
         )
 
         self.add_controller(controller)
+
+    def _focus_search(self):
+        self.search.grab_focus()
+
+        self.search.select_region(
+            0,
+            len(self.search.get_text()),
+        )
+
+    def _on_key_pressed(
+        self,
+        controller,
+        keyval,
+        keycode,
+        state,
+    ):
+        # Focus search on pressing '/'
+        if keyval == Gdk.KEY_slash:
+            self._focus_search()
+            return True
+
+        if keyval != Gdk.KEY_Escape:
+            return False
+
+        # If search is focused, unfocus it on ESC
+        if self.get_focus() is self.search:
+            self.set_focus(None)
+            return True
+
+        # Otherwise ESC will close window
+        self.close()
+
+        return True
 
 
 class MyApp(Adw.Application):
