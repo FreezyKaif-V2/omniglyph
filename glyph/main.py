@@ -20,9 +20,11 @@ class AppWindow(Adw.ApplicationWindow):
 
         self._setup_overlay_window()
         self._add_escape_close()
-        self._build_layout()
 
         self.char_view = CharView(self)
+
+        self._build_layout()
+
         self.main_box.append(self.char_view)
 
     def _setup_overlay_window(self):
@@ -88,7 +90,7 @@ class AppWindow(Adw.ApplicationWindow):
         box.set_margin_start(12)
         box.set_margin_end(12)
 
-        search = create_search_bar()
+        search = create_search_bar(on_change=self.char_view.filter_entries)
 
         search.set_hexpand(True)
         search.set_halign(Gtk.Align.FILL)

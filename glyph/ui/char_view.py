@@ -25,15 +25,11 @@ class CharView(Gtk.ScrolledWindow):
 
         self.entries = []
         self.filtered_entries = []
-
         self.active_category = None
-
-        self.render_index = 0
-        self.loading = False
 
         self._build_grid()
         self._load_database()
-        self._render_entries()
+        self._refresh_grid()
 
     def _build_grid(self):
         self.scroll = Gtk.ScrolledWindow()
@@ -41,14 +37,9 @@ class CharView(Gtk.ScrolledWindow):
         self.scroll.set_hexpand(True)
         self.scroll.set_vexpand(True)
 
-        vadj = self.scroll.get_vadjustment()
-
-        vadj.connect("value-changed", self.on_scroll)
-
         self.grid = Gtk.FlowBox()
 
         self.grid.set_selection_mode(Gtk.SelectionMode.NONE)
-
         self.grid.set_max_children_per_line(13)
 
         self.grid.set_row_spacing(8)
@@ -68,7 +59,7 @@ class CharView(Gtk.ScrolledWindow):
 
             aliases = " ".join(entry.get("aliases", []))
 
-            metadata = " ".join([str(v) for v in entry.get("metadata", {}).values()])
+            metadata = " ".join(str(v) for v in entry.get("metadata", {}).values())
 
             entry["search_text"] = (
                 f"{entry.get('name', '')} "
@@ -84,9 +75,30 @@ class CharView(Gtk.ScrolledWindow):
             category_counts[category] = category_counts.get(category, 0) + 1
 
         self.category_counts = category_counts
+        self.filtered_entries = list(self.entries)
 
-    def _render_entries(self):
-        for entry in self.entries:
+    def filter_entries(self, query):
+        text = query.strip().lower()
+
+        if text:
+            self.filtered_entries = [
+                e for e in self.entries if text in e["search_text"]
+            ]
+        else:
+            self.filtered_entries = list(self.entries)
+
+        self._refresh_grid()
+
+    def _refresh_grid(self):
+        while True:
+            child = self.grid.get_first_child()
+
+            if child is None:
+                break
+
+            self.grid.remove(child)
+
+        for entry in self.filtered_entries:
             self._add_symbol_button(entry)
 
     def _add_symbol_button(self, entry):
@@ -96,7 +108,11 @@ class CharView(Gtk.ScrolledWindow):
 
         button.set_size_request(72, 72)
 
-        button.connect("clicked", self._on_symbol_clicked, symbol)
+        button.connect(
+            "clicked",
+            self._on_symbol_clicked,
+            symbol,
+        )
 
         box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -125,7 +141,7 @@ class CharView(Gtk.ScrolledWindow):
     def _on_symbol_clicked(self, button, symbol):
         clipboard = Gdk.Display.get_default().get_clipboard()
 
-        clipboard.set_text(symbol)
+        clipboard.set(symbol)
 
         notification = Gio.Notification.new("OmniGlyph")
 
@@ -141,6 +157,3 @@ class CharView(Gtk.ScrolledWindow):
     def close_window(self):
         self.parent.close()
         return False
-
-    def on_scroll(self, adjustment):
-        pass
