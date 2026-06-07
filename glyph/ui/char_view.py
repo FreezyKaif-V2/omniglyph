@@ -6,6 +6,9 @@ from gi.repository import Gtk, Gio, GLib, Gdk
 
 from db.loader import CollectionLoader
 
+BATCH_SIZE = 50
+SCROLL_THRESHOLD = 0.85
+
 
 class CharView(Gtk.ScrolledWindow):
     def __init__(self, parent):
@@ -25,7 +28,11 @@ class CharView(Gtk.ScrolledWindow):
 
         self.entries = []
         self.filtered_entries = []
+
         self.active_category = None
+
+        self.render_index = 0
+        self.loading = False
 
         self._build_grid()
         self._load_database()
@@ -37,9 +44,14 @@ class CharView(Gtk.ScrolledWindow):
         self.scroll.set_hexpand(True)
         self.scroll.set_vexpand(True)
 
+        vadj = self.scroll.get_vadjustment()
+
+        vadj.connect("value-changed", self.on_scroll)
+
         self.grid = Gtk.FlowBox()
 
         self.grid.set_selection_mode(Gtk.SelectionMode.NONE)
+
         self.grid.set_max_children_per_line(13)
 
         self.grid.set_row_spacing(8)
@@ -59,7 +71,7 @@ class CharView(Gtk.ScrolledWindow):
 
             aliases = " ".join(entry.get("aliases", []))
 
-            metadata = " ".join(str(v) for v in entry.get("metadata", {}).values())
+            metadata = " ".join([str(v) for v in entry.get("metadata", {}).values()])
 
             entry["search_text"] = (
                 f"{entry.get('name', '')} "
@@ -92,14 +104,30 @@ class CharView(Gtk.ScrolledWindow):
     def _refresh_grid(self):
         while True:
             child = self.grid.get_first_child()
-
             if child is None:
                 break
-
             self.grid.remove(child)
 
-        for entry in self.filtered_entries:
+        self.render_index = 0
+        self.loading = False
+
+        self._load_next_batch()
+
+    def _load_next_batch(self):
+        if self.loading:
+            return
+
+        self.loading = True
+
+        batch = self.filtered_entries[
+            self.render_index : self.render_index + BATCH_SIZE
+        ]
+
+        for entry in batch:
             self._add_symbol_button(entry)
+
+        self.render_index += len(batch)
+        self.loading = False
 
     def _add_symbol_button(self, entry):
         symbol = entry.get("symbol", "")
@@ -108,11 +136,7 @@ class CharView(Gtk.ScrolledWindow):
 
         button.set_size_request(72, 72)
 
-        button.connect(
-            "clicked",
-            self._on_symbol_clicked,
-            symbol,
-        )
+        button.connect("clicked", self._on_symbol_clicked, symbol)
 
         box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -157,3 +181,18 @@ class CharView(Gtk.ScrolledWindow):
     def close_window(self):
         self.parent.close()
         return False
+
+    def on_scroll(self, adjustment):
+        upper = adjustment.get_upper()
+        page_size = adjustment.get_page_size()
+        value = adjustment.get_value()
+
+        if upper <= page_size:
+            return
+
+        position = (value + page_size) / upper
+
+        if position >= SCROLL_THRESHOLD and self.render_index < len(
+            self.filtered_entries
+        ):
+            self._load_next_batch()
