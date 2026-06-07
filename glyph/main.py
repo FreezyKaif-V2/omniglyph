@@ -4,7 +4,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Gtk4LayerShell", "1.0")
 
-from gi.repository import Gtk, Adw, Gdk
+from gi.repository import Gtk, Adw, Gdk, Gio
 from gi.repository import Gtk4LayerShell
 
 import os
@@ -25,6 +25,27 @@ class AppWindow(Adw.ApplicationWindow):
         self._setup_keyboard_shortcuts()
 
         self.main_box.append(self.char_view)
+
+        self.connect(
+            "close-request",
+            self._on_close_request,
+        )
+
+    def _on_close_request(self, *_):
+        self.set_visible(False)
+        return True
+
+    def _hide_window(self):
+        self.set_visible(False)
+
+    def show_and_focus(self):
+        self.search.set_text("")
+
+        self.char_view.filter_entries("")
+
+        self.present()
+
+        self._focus_search()
 
     def _setup_overlay_window(self):
         is_wayland = os.environ.get("XDG_SESSION_TYPE") == "wayland"
@@ -73,23 +94,27 @@ class AppWindow(Adw.ApplicationWindow):
 
     def _build_layout(self):
         self.set_title("OmniGlyph")
-        self.set_default_size(450, 600)
+
+        self.set_default_size(
+            450,
+            600,
+        )
 
         self.main_box.set_spacing(0)
 
         self.set_content(self.main_box)
 
-        header_bar = AppHeader()
-        self.main_box.append(header_bar)
-
         search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
         search_box.set_margin_top(12)
         search_box.set_margin_bottom(8)
         search_box.set_margin_start(12)
         search_box.set_margin_end(12)
 
         self.search = create_search_bar(on_change=self.char_view.filter_entries)
+
         self.search.set_hexpand(True)
+
         self.search.set_halign(Gtk.Align.FILL)
 
         search_box.append(self.search)
@@ -108,12 +133,19 @@ class AppWindow(Adw.ApplicationWindow):
 
     def _focus_search(self):
         self.search.grab_focus()
+
         self.search.select_region(
             0,
             len(self.search.get_text()),
         )
 
-    def _on_key_pressed(self, controller, keyval, keycode, state):
+    def _on_key_pressed(
+        self,
+        controller,
+        keyval,
+        keycode,
+        state,
+    ):
         if keyval == Gdk.KEY_slash:
             self._focus_search()
             return True
@@ -125,17 +157,35 @@ class AppWindow(Adw.ApplicationWindow):
             self.set_focus(None)
             return True
 
-        self.close()
+        self._hide_window()
+
         return True
 
 
 class MyApp(Adw.Application):
     def __init__(self):
-        super().__init__(application_id="dev.anishroy.glyph")
+        super().__init__(
+            application_id="dev.anishroy.glyph",
+            flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
+        )
+
+        self.window = None
 
     def do_activate(self):
-        window = AppWindow(self)
-        window.present()
+        if self.window is None:
+            self.window = AppWindow(self)
+
+            self.hold()
+
+        self.window.show_and_focus()
+
+    def do_command_line(
+        self,
+        command_line,
+    ):
+        self.activate()
+
+        return 0
 
 
 app = MyApp()
