@@ -1,5 +1,7 @@
 import gi
 
+from utils.window_manager import is_tiling_window_manager
+
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Gtk4LayerShell", "1.0")
@@ -48,9 +50,7 @@ class AppWindow(Adw.ApplicationWindow):
         self._focus_search()
 
     def _setup_overlay_window(self):
-        is_wayland = os.environ.get("XDG_SESSION_TYPE") == "wayland"
-
-        if not is_wayland:
+        if not is_tiling_window_manager():
             return
 
         self.set_decorated(False)
@@ -94,6 +94,10 @@ class AppWindow(Adw.ApplicationWindow):
 
     def _build_layout(self):
         self.set_title("OmniGlyph")
+
+        if not is_tiling_window_manager():
+            appHeader = AppHeader()
+            self.main_box.append(appHeader)
 
         self.set_default_size(
             450,
