@@ -169,7 +169,7 @@ class AppWindow(Adw.ApplicationWindow):
 class MyApp(Adw.Application):
     def __init__(self):
         super().__init__(
-            application_id="dev.anishroy.glyph",
+            application_id="dev.anishroy.omniglyph",
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
         )
 

@@ -18,8 +18,8 @@ curl -fL \
     -o "$TMPDIR/omniglyph"
 
 curl -fL \
-    "$BASE_URL/omniglyph.desktop" \
-    -o "$TMPDIR/omniglyph.desktop"
+    "$BASE_URL/dev.anishroy.omniglyph.desktop" \
+    -o "$TMPDIR/dev.anishroy.omniglyph.desktop"
 
 curl -fL \
     "$BASE_URL/omniglyph.png" \
@@ -34,8 +34,8 @@ sudo install -Dm755 \
     /usr/local/bin/omniglyph
 
 sudo install -Dm644 \
-    "$TMPDIR/omniglyph.desktop" \
-    /usr/local/share/applications/omniglyph.desktop
+    "$TMPDIR/dev.anishroy.omniglyph.desktop" \
+    /usr/local/share/applications/dev.anishroy.omniglyph.desktop
 
 sudo install -Dm644 \
     "$TMPDIR/omniglyph.png" \

@@ -4,7 +4,7 @@ set -euo pipefail
 echo "Uninstalling OmniGlyph..."
 
 sudo rm -f /usr/local/bin/omniglyph
-sudo rm -f /usr/local/share/applications/omniglyph.desktop
+sudo rm -f /usr/local/share/applications/dev.anishroy.omniglyph.desktop
 sudo rm -f /usr/local/share/icons/hicolor/256x256/apps/omniglyph.png
 
 echo "Updating desktop database..."
