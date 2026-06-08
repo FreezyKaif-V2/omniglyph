@@ -31,28 +31,51 @@ Browse, search, and copy emojis and Unicode symbols from a lightweight overlay w
 - Standalone binary builds via Nuitka
 
 
+
 ## Installation
+
+### Arch Linux
+
+```bash
+yay -S omniglyph
+```
+
+OR
+
+### Installer Script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/pshycodr/omniglyph/main/scripts/install.sh | bash
 ```
 
-Run:
+### Launch
 
 ```bash
 omniglyph
 ```
 
-### From Source
+## Building from Source
+
+### Clone Repository
 
 ```bash
 git clone https://github.com/pshycodr/omniglyph.git
 cd omniglyph
+```
+
+### Install Dependencies
+
+```bash
 uv sync
+```
+
+### Run Development Version
+
+```bash
 uv run glyph/main.py
 ```
 
-## Build
+## Build Release Binary
 
 ```bash
 source .venv/bin/activate
