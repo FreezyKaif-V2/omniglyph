@@ -5,7 +5,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, Gtk
 
-VERSION = "v0.1.1"
+VERSION = "v0.1.2"
 
 
 class AppHeader(Gtk.HeaderBar):
