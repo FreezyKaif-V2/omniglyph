@@ -1,4 +1,5 @@
 import gi
+import sys
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
@@ -35,7 +36,7 @@ class AppWindow(Adw.ApplicationWindow):
 
         self._setup_overlay_window()
 
-        self.char_view = CharView(self)
+        self.char_view = CharView(self, initial_collection=app.collection)
 
         self._build_layout()
         self._setup_keyboard_shortcuts()
@@ -194,6 +195,17 @@ class AppWindow(Adw.ApplicationWindow):
         return True
 
 
+COLLECTION_FLAGS = {
+    "emoji": "LoadEmojis",
+    "emoticons": "LoadEmoticons",
+    "arrows": "LoadArrows",
+    "math": "LoadMathSymbols",
+    "currency": "LoadCurrency",
+    "special": "LoadSpecialSymbols",
+    "hieroglyphs": "LoadHieroglyphs",
+}
+
+
 class MyApp(Adw.Application):
     def __init__(self):
         super().__init__(
@@ -202,8 +214,11 @@ class MyApp(Adw.Application):
         )
 
         self.window = None
+        self.collection = "emoji"
 
     def do_activate(self):
+        style_manager = Adw.StyleManager.get_default()
+        style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
         if self.window is None:
             self.window = AppWindow(self)
 
@@ -211,14 +226,29 @@ class MyApp(Adw.Application):
 
         self.window.show_and_focus()
 
-    def do_command_line(
-        self,
-        command_line,
-    ):
+    def do_command_line(self, command_line):
+        self.cli_args = command_line.get_arguments()[1:]
+
+        for arg in self.cli_args:
+            flag = arg.lstrip("-").lower()
+
+            if flag in COLLECTION_FLAGS:
+                self.collection = COLLECTION_FLAGS[flag]
+                break
+
+            if flag in ("help", "h"):
+                flags = "\n  ".join(f"--{f}" for f in COLLECTION_FLAGS)
+                print(
+                    f"Usage: omniglyph [OPTION]\n\n"
+                    f"Collections:\n  {flags}\n\n"
+                    f"Default: --emoji"
+                )
+                return 0
+
         self.activate()
 
         return 0
 
 
 app = MyApp()
-app.run()
+app.run(sys.argv)

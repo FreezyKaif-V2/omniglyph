@@ -12,7 +12,7 @@ SCROLL_THRESHOLD = 0.85
 
 
 class CharView(Gtk.Box):
-    def __init__(self, parent):
+    def __init__(self, parent, initial_collection=None):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         self.parent = parent
@@ -27,7 +27,7 @@ class CharView(Gtk.Box):
         self.search_active = False
         self._ignore_toggle = False
 
-        self._load_database()
+        self._load_database(initial_collection)
         self._build_category_bar()
         self._build_scroll_area()
 
@@ -38,8 +38,12 @@ class CharView(Gtk.Box):
 
         self._refresh_grid()
 
-    def _load_database(self):
-        self.entries = CollectionLoader().LoadEmojis()
+    def _load_database(self, loader_name=None):
+        loader = CollectionLoader()
+        if loader_name and hasattr(loader, loader_name):
+            self.entries = getattr(loader, loader_name)()
+        else:
+            self.entries = loader.LoadEmojis()
         self._process_entries()
 
     def _process_entries(self):
@@ -212,6 +216,15 @@ class CharView(Gtk.Box):
             self.category_buttons[category_name] = btn
 
         self._ignore_toggle = False
+
+    def load_collection(self, loader_name):
+        from db.loader import CollectionLoader
+
+        loader = CollectionLoader()
+        method = getattr(loader, loader_name, None)
+        if method is None:
+            return
+        self._on_collection_changed(method())
 
     def toggle_side_bar(self):
         self.side_bar.toggle()
