@@ -9,6 +9,7 @@ from gi.repository import Gtk, Adw, Gdk, Gio
 from gi.repository import Gtk4LayerShell
 
 from ui import *
+from db.loader import CollectionLoader
 
 from utils.window_manager import is_tiling_window_manager
 from importlib.resources import files
@@ -25,9 +26,21 @@ Gtk.StyleContext.add_provider_for_display(
     Gtk.STYLE_PROVIDER_PRIORITY_USER,
 )
 
+COLLECTION_FLAGS = {
+    "emoji": "LoadEmojis",
+    "emoticons": "LoadEmoticons",
+    "arrows": "LoadArrows",
+    "math": "LoadMathSymbols",
+    "currency": "LoadCurrency",
+    "special": "LoadSpecialSymbols",
+    "hieroglyphs": "LoadHieroglyphs",
+}
+
+DEFAULT_COLLECTION = "LoadEmojis"
+
 
 class AppWindow(Adw.ApplicationWindow):
-    def __init__(self, app):
+    def __init__(self, app, initial_data):
         super().__init__(application=app)
 
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -36,7 +49,7 @@ class AppWindow(Adw.ApplicationWindow):
 
         self._setup_overlay_window()
 
-        self.char_view = CharView(self, initial_collection=app.collection)
+        self.char_view = CharView(self, initial_data)
 
         self._build_layout()
         self._setup_keyboard_shortcuts()
@@ -55,10 +68,10 @@ class AppWindow(Adw.ApplicationWindow):
     def _hide_window(self):
         self.set_visible(False)
 
-    def show_and_focus(self):
+    def show_and_focus(self, data):
         self.search.set_text("")
 
-        self.char_view.filter_entries("")
+        self.char_view._on_collection_changed(data)
 
         self.present()
 
@@ -114,10 +127,7 @@ class AppWindow(Adw.ApplicationWindow):
             appHeader = AppHeader()
             self.main_box.append(appHeader)
 
-        self.set_default_size(
-            450,
-            500,
-        )
+        self.set_default_size(450, 500)
 
         self.main_box.set_spacing(0)
 
@@ -127,16 +137,13 @@ class AppWindow(Adw.ApplicationWindow):
         self.set_content(self.root_overlay)
 
         search_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-
         search_box.set_margin_top(12)
         search_box.set_margin_bottom(8)
         search_box.set_margin_start(12)
         search_box.set_margin_end(12)
 
         self.search = create_search_bar(on_change=self.char_view.filter_entries)
-
         self.search.set_hexpand(True)
-
         self.search.set_halign(Gtk.Align.FILL)
 
         side_bar_button = Gtk.Button()
@@ -144,7 +151,6 @@ class AppWindow(Adw.ApplicationWindow):
         side_bar_button.set_valign(Gtk.Align.START)
         side_bar_button.set_tooltip_text("Open sidebar")
         side_bar_button.set_margin_start(6)
-
         side_bar_button.connect("clicked", lambda _: self.char_view.toggle_side_bar())
 
         search_box.append(self.search)
@@ -156,29 +162,14 @@ class AppWindow(Adw.ApplicationWindow):
 
     def _setup_keyboard_shortcuts(self):
         controller = Gtk.EventControllerKey()
-
-        controller.connect(
-            "key-pressed",
-            self._on_key_pressed,
-        )
-
+        controller.connect("key-pressed", self._on_key_pressed)
         self.add_controller(controller)
 
     def _focus_search(self):
         self.search.grab_focus()
+        self.search.select_region(0, len(self.search.get_text()))
 
-        self.search.select_region(
-            0,
-            len(self.search.get_text()),
-        )
-
-    def _on_key_pressed(
-        self,
-        controller,
-        keyval,
-        keycode,
-        state,
-    ):
+    def _on_key_pressed(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_slash:
             self._focus_search()
             return True
@@ -191,19 +182,7 @@ class AppWindow(Adw.ApplicationWindow):
             return True
 
         self._hide_window()
-
         return True
-
-
-COLLECTION_FLAGS = {
-    "emoji": "LoadEmojis",
-    "emoticons": "LoadEmoticons",
-    "arrows": "LoadArrows",
-    "math": "LoadMathSymbols",
-    "currency": "LoadCurrency",
-    "special": "LoadSpecialSymbols",
-    "hieroglyphs": "LoadHieroglyphs",
-}
 
 
 class MyApp(Adw.Application):
@@ -214,28 +193,29 @@ class MyApp(Adw.Application):
         )
 
         self.window = None
-        self.collection = "emoji"
+
+    def _resolve_collection(self, args):
+        for arg in args:
+            flag = arg.lstrip("-").lower()
+            if flag in COLLECTION_FLAGS:
+                return COLLECTION_FLAGS[flag]
+        return DEFAULT_COLLECTION
+
+    def _load(self, loader_name):
+        loader = CollectionLoader()
+        return getattr(loader, loader_name)()
 
     def do_activate(self):
         style_manager = Adw.StyleManager.get_default()
         style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
-        if self.window is None:
-            self.window = AppWindow(self)
-
-            self.hold()
-
-        self.window.show_and_focus()
 
     def do_command_line(self, command_line):
-        self.cli_args = command_line.get_arguments()[1:]
+        raw = command_line.get_arguments()[1:]
 
-        for arg in self.cli_args:
+        args = [a.decode() if isinstance(a, bytes) else a for a in raw]
+
+        for arg in args:
             flag = arg.lstrip("-").lower()
-
-            if flag in COLLECTION_FLAGS:
-                self.collection = COLLECTION_FLAGS[flag]
-                break
-
             if flag in ("help", "h"):
                 flags = "\n  ".join(f"--{f}" for f in COLLECTION_FLAGS)
                 print(
@@ -245,7 +225,16 @@ class MyApp(Adw.Application):
                 )
                 return 0
 
-        self.activate()
+        loader_name = self._resolve_collection(args)
+        data = self._load(loader_name)
+
+        if self.window is None:
+            style_manager = Adw.StyleManager.get_default()
+            style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+            self.window = AppWindow(self, data)
+            self.hold()
+
+        self.window.show_and_focus(data)
 
         return 0
 

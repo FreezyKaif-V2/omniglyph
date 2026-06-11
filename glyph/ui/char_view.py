@@ -4,7 +4,6 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Gtk, Gio, GLib, Gdk
 
-from db.loader import CollectionLoader
 from ui.side_bar import SideBar
 
 BATCH_SIZE = 30
@@ -12,7 +11,7 @@ SCROLL_THRESHOLD = 0.85
 
 
 class CharView(Gtk.Box):
-    def __init__(self, parent, initial_collection=None):
+    def __init__(self, parent, initial_data):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         self.parent = parent
@@ -27,7 +26,8 @@ class CharView(Gtk.Box):
         self.search_active = False
         self._ignore_toggle = False
 
-        self._load_database(initial_collection)
+        self.entries = initial_data
+        self._process_entries()
         self._build_category_bar()
         self._build_scroll_area()
 
@@ -37,14 +37,6 @@ class CharView(Gtk.Box):
         self.side_bar.set_vexpand(True)
 
         self._refresh_grid()
-
-    def _load_database(self, loader_name=None):
-        loader = CollectionLoader()
-        if loader_name and hasattr(loader, loader_name):
-            self.entries = getattr(loader, loader_name)()
-        else:
-            self.entries = loader.LoadEmojis()
-        self._process_entries()
 
     def _process_entries(self):
         seen_categories = []
