@@ -34,7 +34,6 @@ class MyApp(Adw.Application):
         return getattr(CollectionLoader(), loader_name)()
 
     def do_activate(self):
-        print("DO ACTIVATE")
         setup_update_notifications(self)
         check_for_updates_async(self)
 
