@@ -108,7 +108,11 @@ class AppWindow(Adw.ApplicationWindow):
 
     def _match(self, keyval, pure_mods, name, default=""):
         k, m = _parse_shortcut(self.config.get("shortcuts", name, default=default))
-        return k is not None and keyval == k and pure_mods == m
+
+        if k is None:
+            return False
+
+        return Gdk.keyval_to_lower(keyval) == Gdk.keyval_to_lower(k) and pure_mods == m
 
     def _on_key_pressed(self, controller, keyval, keycode, state):
         pure_mods = state & (
