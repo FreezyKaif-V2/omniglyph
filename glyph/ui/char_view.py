@@ -5,9 +5,11 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gio, GLib, Gdk
 
 from ui.side_bar import SideBar
+from utils.config import Config
 
-BATCH_SIZE = 30
 SCROLL_THRESHOLD = 0.85
+
+_config = Config()
 
 
 class CharView(Gtk.Box):
@@ -16,6 +18,7 @@ class CharView(Gtk.Box):
 
         self.parent = parent
         self.active_loader = loader_name
+        self._config = _config
 
         self.set_vexpand(True)
         self.set_hexpand(True)
@@ -38,6 +41,12 @@ class CharView(Gtk.Box):
         self.side_bar.set_vexpand(True)
 
         self._refresh_grid()
+
+    def _batch_size(self):
+        return self._config.get("behavior", "batch_size", default=30)
+
+    def _grid_columns(self):
+        return self._config.get("behavior", "grid_columns", default=13)
 
     def _process_entries(self):
         seen_categories = []
@@ -80,11 +89,16 @@ class CharView(Gtk.Box):
         bar.set_margin_end(8)
 
         self.category_buttons = {}
+        self._category_order = [None]
+
+        next_sc = self._config.shortcut_label("next_category")
+        prev_sc = self._config.shortcut_label("prev_category")
 
         all_btn = Gtk.ToggleButton()
         all_btn.set_label("All")
         all_btn.set_active(True)
         all_btn.add_css_class("category-pill")
+        all_btn.set_tooltip_text(f"All categories ({prev_sc} / {next_sc} to navigate)")
         all_btn.connect("toggled", self._on_category_toggled, None)
         bar.append(all_btn)
         self.category_buttons[None] = all_btn
@@ -95,12 +109,13 @@ class CharView(Gtk.Box):
 
             btn = Gtk.ToggleButton()
             btn.set_label(category_icon)
-            btn.set_tooltip_text(category_name)
+            btn.set_tooltip_text(f"{category_name} ({prev_sc} / {next_sc} to navigate)")
             btn.add_css_class("category-pill")
             btn.connect("toggled", self._on_category_toggled, category_name)
             bar.append(btn)
 
             self.category_buttons[category_name] = btn
+            self._category_order.append(category_name)
 
         scroll.set_child(bar)
         self.append(scroll)
@@ -164,6 +179,7 @@ class CharView(Gtk.Box):
         self._ignore_toggle = True
 
         self.category_buttons = {}
+        self._category_order = [None]
 
         category_scroll = None
         child = self.get_first_child()
@@ -186,10 +202,14 @@ class CharView(Gtk.Box):
                 break
             bar.remove(first)
 
+        next_sc = self._config.shortcut_label("next_category")
+        prev_sc = self._config.shortcut_label("prev_category")
+
         all_btn = Gtk.ToggleButton()
         all_btn.set_label("All")
         all_btn.set_active(True)
         all_btn.add_css_class("category-pill")
+        all_btn.set_tooltip_text(f"All categories ({prev_sc} / {next_sc} to navigate)")
         all_btn.connect("toggled", self._on_category_toggled, None)
         bar.append(all_btn)
         self.category_buttons[None] = all_btn
@@ -201,12 +221,13 @@ class CharView(Gtk.Box):
 
             btn = Gtk.ToggleButton()
             btn.set_label(category_icon)
-            btn.set_tooltip_text(category_name)
+            btn.set_tooltip_text(f"{category_name} ({prev_sc} / {next_sc} to navigate)")
             btn.add_css_class("category-pill")
             btn.connect("toggled", self._on_category_toggled, category_name)
             bar.append(btn)
 
             self.category_buttons[category_name] = btn
+            self._category_order.append(category_name)
 
         self._ignore_toggle = False
 
@@ -219,8 +240,64 @@ class CharView(Gtk.Box):
             return
         self._on_collection_changed(method())
 
+    def reload_current_collection(self):
+        self.load_collection(self.active_loader)
+
     def toggle_side_bar(self):
         self.side_bar.toggle()
+
+    def select_next_category(self):
+        if not self._category_order:
+            return
+        try:
+            idx = self._category_order.index(self.active_category)
+        except ValueError:
+            idx = 0
+        next_idx = (idx + 1) % len(self._category_order)
+        next_cat = self._category_order[next_idx]
+        btn = self.category_buttons.get(next_cat)
+        if btn:
+            btn.set_active(True)
+
+    def select_prev_category(self):
+        if not self._category_order:
+            return
+        try:
+            idx = self._category_order.index(self.active_category)
+        except ValueError:
+            idx = 0
+        prev_idx = (idx - 1) % len(self._category_order)
+        prev_cat = self._category_order[prev_idx]
+        btn = self.category_buttons.get(prev_cat)
+        if btn:
+            btn.set_active(True)
+
+    def scroll_by(self, delta):
+        vadj = self.scroll.get_vadjustment()
+        new_val = max(
+            vadj.get_lower(),
+            min(vadj.get_upper() - vadj.get_page_size(), vadj.get_value() + delta),
+        )
+        vadj.set_value(new_val)
+
+    def copy_first_symbol(self):
+        if not self.filtered_entries:
+            return
+        symbol = self.filtered_entries[0].get("symbol", "")
+        if not symbol:
+            return
+        clipboard = Gdk.Display.get_default().get_clipboard()
+        clipboard.set(symbol)
+
+        if self._config.get("behavior", "show_notifications", default=True):
+            notification = Gio.Notification.new("OmniGlyph")
+            notification.set_body(f"Copied: {symbol}")
+            app = self.parent.get_application()
+            if app:
+                app.send_notification(None, notification)
+
+        if self._config.get("behavior", "close_on_copy", default=True):
+            GLib.timeout_add(100, self._close_window)
 
     def filter_entries(self, query):
         text = query.strip().lower()
@@ -307,7 +384,7 @@ class CharView(Gtk.Box):
 
         grid = Gtk.FlowBox()
         grid.set_selection_mode(Gtk.SelectionMode.NONE)
-        grid.set_max_children_per_line(13)
+        grid.set_max_children_per_line(self._grid_columns())
         grid.set_row_spacing(2)
         grid.set_column_spacing(2)
         grid.set_homogeneous(True)
@@ -327,8 +404,9 @@ class CharView(Gtk.Box):
 
         self.loading = True
 
+        batch_size = self._batch_size()
         batch = self.filtered_entries[
-            self.render_index : self.render_index + BATCH_SIZE
+            self.render_index : self.render_index + batch_size
         ]
 
         order, all_sections = self._get_sections()
@@ -344,6 +422,7 @@ class CharView(Gtk.Box):
 
     def _add_symbol_button(self, entry, grid):
         symbol = entry.get("symbol", "")
+        copy_sc = self._config.shortcut_label("copy_first")
 
         button = Gtk.Button()
         button.add_css_class("symbol-button")
@@ -361,7 +440,12 @@ class CharView(Gtk.Box):
 
         box.append(char_label)
         button.set_child(box)
-        button.set_tooltip_text(entry.get("name", ""))
+
+        name = entry.get("name", "")
+        if self.filtered_entries and self.filtered_entries[0] is entry:
+            button.set_tooltip_text(f"{name} — click or {copy_sc} to copy")
+        else:
+            button.set_tooltip_text(name)
 
         grid.append(button)
 
@@ -369,18 +453,22 @@ class CharView(Gtk.Box):
         clipboard = Gdk.Display.get_default().get_clipboard()
         clipboard.set(symbol)
 
-        notification = Gio.Notification.new("OmniGlyph")
-        notification.set_body(f"Copied: {symbol}")
+        if self._config.get("behavior", "show_notifications", default=True):
+            notification = Gio.Notification.new("OmniGlyph")
+            notification.set_body(f"Copied: {symbol}")
+            app = self.parent.get_application()
+            if app:
+                app.send_notification(None, notification)
 
-        app = self.parent.get_application()
-        if app:
-            app.send_notification(None, notification)
+        if self._config.get("behavior", "close_on_copy", default=True):
+            GLib.timeout_add(100, self._close_window)
 
-        GLib.timeout_add(100, self.close_window)
-
-    def close_window(self):
+    def _close_window(self):
         self.parent.hide()
         return False
+
+    def close_window(self):
+        self._close_window()
 
     def _on_scroll(self, adjustment):
         upper = adjustment.get_upper()

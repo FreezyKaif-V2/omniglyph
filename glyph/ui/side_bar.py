@@ -5,6 +5,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gdk
 
 from db.loader import CollectionLoader
+from utils.config import Config
 
 COLLECTIONS = [
     {
@@ -44,11 +45,14 @@ COLLECTIONS = [
     },
 ]
 
+_config = Config()
+
 
 class SideBar(Gtk.Revealer):
     def __init__(self, on_collection_change=None):
         super().__init__()
 
+        self._config = _config
         self.on_collection_change = on_collection_change
         self._active_btn = None
         self._ignore_toggle = False
@@ -59,9 +63,11 @@ class SideBar(Gtk.Revealer):
         self.set_valign(Gtk.Align.FILL)
         self.set_vexpand(True)
 
+        sidebar_width = self._config.get("behavior", "sidebar_width", default=180)
+
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         outer.add_css_class("sidebar")
-        outer.set_size_request(180, -1)
+        outer.set_size_request(sidebar_width, -1)
         outer.set_vexpand(True)
 
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
@@ -75,10 +81,12 @@ class SideBar(Gtk.Revealer):
         title.set_hexpand(True)
         title.add_css_class("heading")
 
+        close_sc = self._config.shortcut_label("close_sidebar")
         close_btn = Gtk.Button()
         close_btn.set_icon_name("window-close-symbolic")
         close_btn.set_valign(Gtk.Align.CENTER)
         close_btn.add_css_class("flat")
+        close_btn.set_tooltip_text(f"Close sidebar ({close_sc})")
         close_btn.connect("clicked", lambda _: self.toggle())
 
         header.append(title)
@@ -98,10 +106,15 @@ class SideBar(Gtk.Revealer):
 
         self._buttons = {}
 
+        toggle_sc = self._config.shortcut_label("toggle_sidebar")
+
         for collection in COLLECTIONS:
             btn = Gtk.ToggleButton()
             btn.add_css_class("sidebar-item")
             btn.set_hexpand(True)
+            btn.set_tooltip_text(
+                f"Switch to {collection['name']} ({toggle_sc} to toggle sidebar)"
+            )
 
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
             row.set_margin_top(6)
