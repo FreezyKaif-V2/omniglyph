@@ -2,7 +2,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Gtk
+from gi.repository import Gtk, GLib
 from utils.config import Config
 
 _config = Config()
@@ -124,6 +124,29 @@ class CategoryBar(Gtk.ScrolledWindow):
         btn = self.category_buttons.get(category)
         if btn:
             btn.set_active(True)
+            btn.grab_focus()
+            GLib.idle_add(self._scroll_to_button, btn)
+
+    def _scroll_to_button(self, btn):
+        adj = self.get_hadjustment()
+        if adj is None:
+            return False
+
+        alloc = btn.get_allocation()
+        bar_alloc = self.get_allocation()
+
+        btn_left = alloc.x
+        btn_right = alloc.x + alloc.width
+
+        current = adj.get_value()
+        page = bar_alloc.width
+
+        if btn_left < current:
+            adj.set_value(btn_left - 8)
+        elif btn_right > current + page:
+            adj.set_value(btn_right - page + 8)
+
+        return False
 
     def activate_history(self):
         if not self._history_btn.get_active():
