@@ -1,13 +1,8 @@
-import gi
-
-gi.require_version("Gtk", "4.0")
-
 from gi.repository import Gtk, Gio, GLib, Gdk
-
-from ui.side_bar import SideBar
 from utils.config import Config
-
-SCROLL_THRESHOLD = 0.85
+from ui.side_bar import SideBar
+from ui.category_bar import CategoryBar
+from ui.symbol_grid import SymbolGrid
 
 _config = Config()
 
@@ -23,146 +18,44 @@ class CharView(Gtk.Box):
         self.set_vexpand(True)
         self.set_hexpand(True)
 
-        self.entries = []
-        self.filtered_entries = []
-        self.categories = []
+        self.entries = initial_data
         self.active_category = None
         self.search_active = False
-        self._ignore_toggle = False
 
-        self.entries = initial_data
         self._process_entries()
-        self._build_category_bar()
-        self._build_scroll_area()
+
+        self.category_bar = CategoryBar(
+            self.entries["categories"],
+            on_category_change=self._on_category_changed,
+        )
+        self.append(self.category_bar)
+
+        self.grid = SymbolGrid(on_symbol_clicked=self._on_symbol_clicked)
+        self.append(self.grid)
 
         self.side_bar = SideBar(on_collection_change=self._on_collection_changed)
         self.side_bar.set_halign(Gtk.Align.END)
         self.side_bar.set_valign(Gtk.Align.FILL)
         self.side_bar.set_vexpand(True)
 
-        self._refresh_grid()
-
-    def _batch_size(self):
-        return self._config.get("behavior", "batch_size", default=30)
-
-    def _grid_columns(self):
-        return self._config.get("behavior", "grid_columns", default=13)
+        self.grid.refresh(self.filtered_entries)
 
     def _process_entries(self):
-        seen_categories = []
-        category_counts = {}
-
         for entry in self.entries["symbols"]:
             tags = " ".join(entry.get("tags", []))
             aliases = " ".join(entry.get("aliases", []))
-            metadata = " ".join([str(v) for v in entry.get("metadata", {}).values()])
-
+            metadata = " ".join(str(v) for v in entry.get("metadata", {}).values())
             entry["search_text"] = (
-                f"{entry.get('name', '')} "
-                f"{tags} "
-                f"{aliases} "
-                f"{entry.get('category', '')} "
-                f"{entry.get('subcategory', '')} "
-                f"{metadata}"
+                f"{entry.get('name', '')} {tags} {aliases} "
+                f"{entry.get('category', '')} {entry.get('subcategory', '')} {metadata}"
             ).lower()
 
-            category = entry.get("category", "Other")
-
-            if category not in seen_categories:
-                seen_categories.append(category)
-
-            category_counts[category] = category_counts.get(category, 0) + 1
-
-        self.categories = self.entries["categories"]
-        self.category_counts = category_counts
         self.filtered_entries = list(self.entries["symbols"])
 
-    def _build_category_bar(self):
-        scroll = Gtk.ScrolledWindow()
-        scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
-        scroll.set_hexpand(True)
-
-        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        bar.set_margin_top(6)
-        bar.set_margin_bottom(6)
-        bar.set_margin_start(8)
-        bar.set_margin_end(8)
-
-        self.category_buttons = {}
-        self._category_order = [None]
-
-        next_sc = self._config.shortcut_label("next_category")
-        prev_sc = self._config.shortcut_label("prev_category")
-
-        all_btn = Gtk.ToggleButton()
-        all_btn.set_label("All")
-        all_btn.set_active(True)
-        all_btn.add_css_class("category-pill")
-        all_btn.set_tooltip_text(f"All categories ({prev_sc} / {next_sc} to navigate)")
-        all_btn.connect("toggled", self._on_category_toggled, None)
-        bar.append(all_btn)
-        self.category_buttons[None] = all_btn
-
-        for category in self.categories:
-            category_name = category["name"]
-            category_icon = category["icon"]
-
-            btn = Gtk.ToggleButton()
-            btn.set_label(category_icon)
-            btn.set_tooltip_text(f"{category_name} ({prev_sc} / {next_sc} to navigate)")
-            btn.add_css_class("category-pill")
-            btn.connect("toggled", self._on_category_toggled, category_name)
-            bar.append(btn)
-
-            self.category_buttons[category_name] = btn
-            self._category_order.append(category_name)
-
-        scroll.set_child(bar)
-        self.append(scroll)
-        self._active_btn = all_btn
-
-    def _on_category_toggled(self, btn, category):
-        if self._ignore_toggle:
-            return
-
-        if not btn.get_active():
-            if self._active_btn is btn:
-                self._ignore_toggle = True
-                btn.set_active(True)
-                self._ignore_toggle = False
-            return
-
-        self._ignore_toggle = True
-
-        if self._active_btn and self._active_btn is not btn:
-            self._active_btn.set_active(False)
-
-        self._active_btn = btn
+    def _on_category_changed(self, category):
         self.active_category = category
-
-        self._ignore_toggle = False
-
         if not self.search_active:
             self._apply_filter()
-
-    def _build_scroll_area(self):
-        self.scroll = Gtk.ScrolledWindow()
-        self.scroll.set_hexpand(True)
-        self.scroll.set_vexpand(True)
-        self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-
-        vadj = self.scroll.get_vadjustment()
-        vadj.connect("value-changed", self._on_scroll)
-
-        self.content_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL,
-            spacing=0,
-        )
-
-        self.scroll.set_child(self.content_box)
-        self.append(self.scroll)
-
-        self.section_widgets = {}
 
     def _on_collection_changed(self, data):
         self.entries = data
@@ -170,286 +63,33 @@ class CharView(Gtk.Box):
         self.search_active = False
 
         self._process_entries()
-        self._rebuild_category_bar()
+        self.category_bar.rebuild(self.entries["categories"])
         self._apply_filter()
-
         self.side_bar.set_reveal_child(False)
-
-    def _rebuild_category_bar(self):
-        self._ignore_toggle = True
-
-        self.category_buttons = {}
-        self._category_order = [None]
-
-        category_scroll = None
-        child = self.get_first_child()
-        while child:
-            if isinstance(child, Gtk.ScrolledWindow):
-                category_scroll = child
-                break
-            child = child.get_next_sibling()
-
-        if category_scroll is None:
-            self._ignore_toggle = False
-            return
-
-        viewport = category_scroll.get_child()
-        bar = viewport.get_child() if isinstance(viewport, Gtk.Viewport) else viewport
-
-        while True:
-            first = bar.get_first_child()
-            if first is None:
-                break
-            bar.remove(first)
-
-        next_sc = self._config.shortcut_label("next_category")
-        prev_sc = self._config.shortcut_label("prev_category")
-
-        all_btn = Gtk.ToggleButton()
-        all_btn.set_label("All")
-        all_btn.set_active(True)
-        all_btn.add_css_class("category-pill")
-        all_btn.set_tooltip_text(f"All categories ({prev_sc} / {next_sc} to navigate)")
-        all_btn.connect("toggled", self._on_category_toggled, None)
-        bar.append(all_btn)
-        self.category_buttons[None] = all_btn
-        self._active_btn = all_btn
-
-        for category in self.categories:
-            category_name = category["name"]
-            category_icon = category["icon"]
-
-            btn = Gtk.ToggleButton()
-            btn.set_label(category_icon)
-            btn.set_tooltip_text(f"{category_name} ({prev_sc} / {next_sc} to navigate)")
-            btn.add_css_class("category-pill")
-            btn.connect("toggled", self._on_category_toggled, category_name)
-            bar.append(btn)
-
-            self.category_buttons[category_name] = btn
-            self._category_order.append(category_name)
-
-        self._ignore_toggle = False
-
-    def load_collection(self, loader_name):
-        from db.loader import CollectionLoader
-
-        loader = CollectionLoader()
-        method = getattr(loader, loader_name, None)
-        if method is None:
-            return
-        self._on_collection_changed(method())
-
-    def reload_current_collection(self):
-        self.load_collection(self.active_loader)
-
-    def toggle_side_bar(self):
-        self.side_bar.toggle()
-
-    def select_next_category(self):
-        if not self._category_order:
-            return
-        try:
-            idx = self._category_order.index(self.active_category)
-        except ValueError:
-            idx = 0
-        next_idx = (idx + 1) % len(self._category_order)
-        next_cat = self._category_order[next_idx]
-        btn = self.category_buttons.get(next_cat)
-        if btn:
-            btn.set_active(True)
-
-    def select_prev_category(self):
-        if not self._category_order:
-            return
-        try:
-            idx = self._category_order.index(self.active_category)
-        except ValueError:
-            idx = 0
-        prev_idx = (idx - 1) % len(self._category_order)
-        prev_cat = self._category_order[prev_idx]
-        btn = self.category_buttons.get(prev_cat)
-        if btn:
-            btn.set_active(True)
-
-    def scroll_by(self, delta):
-        vadj = self.scroll.get_vadjustment()
-        new_val = max(
-            vadj.get_lower(),
-            min(vadj.get_upper() - vadj.get_page_size(), vadj.get_value() + delta),
-        )
-        vadj.set_value(new_val)
-
-    def copy_first_symbol(self):
-        if not self.filtered_entries:
-            return
-        symbol = self.filtered_entries[0].get("symbol", "")
-        if not symbol:
-            return
-        clipboard = Gdk.Display.get_default().get_clipboard()
-        clipboard.set(symbol)
-
-        if self._config.get("behavior", "show_notifications", default=True):
-            notification = Gio.Notification.new("OmniGlyph")
-            notification.set_body(f"Copied: {symbol}")
-            app = self.parent.get_application()
-            if app:
-                app.send_notification(None, notification)
-
-        if self._config.get("behavior", "close_on_copy", default=True):
-            GLib.timeout_add(100, self._close_window)
-
-    def filter_entries(self, query):
-        text = query.strip().lower()
-
-        self.search_active = bool(text)
-
-        symbols = self.entries["symbols"]
-
-        if text:
-            self.filtered_entries = [
-                entry for entry in symbols if text in entry["search_text"]
-            ]
-        else:
-            self._apply_filter()
-            return
-
-        self._refresh_grid()
 
     def _apply_filter(self):
         symbols = self.entries["symbols"]
-
         if self.active_category:
             self.filtered_entries = [
-                entry
-                for entry in symbols
-                if entry.get("category") == self.active_category
+                e for e in symbols if e.get("category") == self.active_category
             ]
         else:
             self.filtered_entries = list(symbols)
+        self.grid.refresh(self.filtered_entries)
 
-        self._refresh_grid()
+    def filter_entries(self, query):
+        text = query.strip().lower()
+        self.search_active = bool(text)
 
-    def _refresh_grid(self):
-        while True:
-            child = self.content_box.get_first_child()
-            if child is None:
-                break
-            self.content_box.remove(child)
-
-        self.section_widgets = {}
-        self.render_index = 0
-        self.loading = False
-
-        self._load_next_batch()
-
-    def _get_sections(self):
-        sections = {}
-        order = []
-        for entry in self.filtered_entries:
-            cat = entry.get("category", "Other")
-            if cat not in sections:
-                sections[cat] = []
-                order.append(cat)
-            sections[cat].append(entry)
-        return order, sections
-
-    def _ensure_section(self, category, total):
-        if category in self.section_widgets:
-            return self.section_widgets[category]["grid"]
-
-        section_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        section_box.set_margin_top(12)
-        section_box.set_margin_bottom(4)
-        section_box.set_margin_start(12)
-        section_box.set_margin_end(12)
-
-        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        header.set_hexpand(True)
-
-        name_label = Gtk.Label(label=category)
-        name_label.set_halign(Gtk.Align.START)
-        name_label.set_hexpand(True)
-        name_label.add_css_class("heading")
-
-        count_label = Gtk.Label(label=str(total))
-        count_label.set_halign(Gtk.Align.END)
-        count_label.add_css_class("dim-label")
-
-        header.append(name_label)
-        header.append(count_label)
-
-        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        sep.set_margin_top(4)
-
-        grid = Gtk.FlowBox()
-        grid.set_selection_mode(Gtk.SelectionMode.NONE)
-        grid.set_max_children_per_line(self._grid_columns())
-        grid.set_row_spacing(2)
-        grid.set_column_spacing(2)
-        grid.set_homogeneous(True)
-
-        section_box.append(header)
-        section_box.append(sep)
-        section_box.append(grid)
-
-        self.content_box.append(section_box)
-        self.section_widgets[category] = {"box": section_box, "grid": grid}
-
-        return grid
-
-    def _load_next_batch(self):
-        if self.loading:
-            return
-
-        self.loading = True
-
-        batch_size = self._batch_size()
-        batch = self.filtered_entries[
-            self.render_index : self.render_index + batch_size
-        ]
-
-        order, all_sections = self._get_sections()
-
-        for entry in batch:
-            category = entry.get("category", "Other")
-            total = len(all_sections.get(category, []))
-            grid = self._ensure_section(category, total)
-            self._add_symbol_button(entry, grid)
-
-        self.render_index += len(batch)
-        self.loading = False
-
-    def _add_symbol_button(self, entry, grid):
-        symbol = entry.get("symbol", "")
-        copy_sc = self._config.shortcut_label("copy_first")
-
-        button = Gtk.Button()
-        button.add_css_class("symbol-button")
-        button.set_size_request(60, 60)
-        button.connect("clicked", self._on_symbol_clicked, symbol)
-
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        box.set_halign(Gtk.Align.CENTER)
-        box.set_valign(Gtk.Align.CENTER)
-
-        char_label = Gtk.Label()
-        char_label.set_markup(
-            f"<span font='20'>{GLib.markup_escape_text(symbol)}</span>"
-        )
-
-        box.append(char_label)
-        button.set_child(box)
-
-        name = entry.get("name", "")
-        if self.filtered_entries and self.filtered_entries[0] is entry:
-            button.set_tooltip_text(f"{name} — click or {copy_sc} to copy")
+        if text:
+            self.filtered_entries = [
+                e for e in self.entries["symbols"] if text in e["search_text"]
+            ]
+            self.grid.refresh(self.filtered_entries)
         else:
-            button.set_tooltip_text(name)
+            self._apply_filter()
 
-        grid.append(button)
-
-    def _on_symbol_clicked(self, button, symbol):
+    def _on_symbol_clicked(self, symbol):
         clipboard = Gdk.Display.get_default().get_clipboard()
         clipboard.set(symbol)
 
@@ -461,26 +101,45 @@ class CharView(Gtk.Box):
                 app.send_notification(None, notification)
 
         if self._config.get("behavior", "close_on_copy", default=True):
-            GLib.timeout_add(100, self._close_window)
+            GLib.timeout_add(100, lambda: (self.parent.hide(), False)[1])
 
-    def _close_window(self):
-        self.parent.hide()
-        return False
+    # --- delegated to grid ---
+    def scroll_by(self, delta):
+        self.grid.scroll_by(delta)
 
-    def close_window(self):
-        self._close_window()
+    def copy_first_symbol(self):
+        if self.filtered_entries:
+            self._on_symbol_clicked(self.filtered_entries[0].get("symbol", ""))
 
-    def _on_scroll(self, adjustment):
-        upper = adjustment.get_upper()
-        page_size = adjustment.get_page_size()
-        value = adjustment.get_value()
+    # --- delegated to category_bar ---
+    def select_next_category(self):
+        order = self.category_bar.get_order()
+        self._step_category(order, +1)
 
-        if upper <= page_size:
+    def select_prev_category(self):
+        order = self.category_bar.get_order()
+        self._step_category(order, -1)
+
+    def _step_category(self, order, direction):
+        if not order:
             return
+        try:
+            idx = order.index(self.active_category)
+        except ValueError:
+            idx = 0
+        self.category_bar.select(order[(idx + direction) % len(order)])
 
-        position = (value + page_size) / upper
+    # --- delegated to side_bar ---
+    def toggle_side_bar(self):
+        self.side_bar.toggle()
 
-        if position >= SCROLL_THRESHOLD and self.render_index < len(
-            self.filtered_entries
-        ):
-            self._load_next_batch()
+    # --- collection loading ---
+    def load_collection(self, loader_name):
+        from db.loader import CollectionLoader
+
+        method = getattr(CollectionLoader(), loader_name, None)
+        if method:
+            self._on_collection_changed(method())
+
+    def reload_current_collection(self):
+        self.load_collection(self.active_loader)
