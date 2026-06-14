@@ -10,6 +10,7 @@ dependencies = [
     "pygobject>=3.54.5",
     "ruff>=0.15.14",
     "pre-commit>=4.6.0",
+    "tomli-w>=1.2.0",
 ]
 
 [tool.ruff]
