@@ -195,11 +195,9 @@ class SideBar(Gtk.Revealer):
         return self.get_reveal_child()
 
     def select_next_collection(self):
-        print("SIDE_BAR_NEXT")
         self._step_sidebar(+1)
 
     def select_prev_collection(self):
-        print("SIDE_BAR_PREV")
         self._step_sidebar(-1)
 
     def _step_sidebar(self, direction):
