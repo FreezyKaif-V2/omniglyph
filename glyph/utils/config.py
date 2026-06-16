@@ -1,9 +1,10 @@
+from copy import deepcopy
 from pathlib import Path
 import tomllib
 
 from gi.repository import GLib
 
-DEFAULT_CONFIG = """
+DEFAULT_CONFIG = r"""
 # OmniGlyph Configuration
 #
 # Location:
@@ -11,41 +12,136 @@ DEFAULT_CONFIG = """
 #
 # Restart OmniGlyph after changing this file.
 #
-# Shortcut format examples:
+# Shortcut Syntax
+# ----------------
+#
+# A shortcut is composed of zero or more modifiers
+# followed by a key name:
+#
 #   ctrl+q
 #   ctrl+shift+h
 #   alt+s
 #   super+space
+#   ctrl+alt+delete
 #
-# Supported modifiers:
-#   ctrl, shift, alt, super
+# Supported Modifiers
+# -------------------
 #
-# Supported named keys:
-#   slash, escape, return, tab, space,
-#   up, down, left, right,
-#   home, end, pageup, pagedown,
-#   delete, backspace,
-#   f1-f12
+#   ctrl
+#   shift
+#   alt
+#   super
 #
-# Single-character keys:
-#   a-z, 0-9, [, ], /, ., ,, ;, etc.
+# Supported Named Keys
+# --------------------
 #
-# If a setting is missing, OmniGlyph will fall back
-# to its built-in default value.
+# Navigation
+#
+#   up
+#   down
+#   left
+#   right
+#   home
+#   end
+#   pageup
+#   pagedown
+#
+# Editing
+#
+#   return
+#   enter
+#   escape
+#   tab
+#   space
+#   backspace
+#   delete
+#   insert
+#
+# Lock Keys
+#
+#   capslock
+#   numlock
+#   scrolllock
+#
+# Function Keys
+#
+#   f1 - f12
+#
+# Miscellaneous
+#
+#   menu
+#   printscreen
+#   pause
+#
+# Symbol Keys
+#
+#   slash        (/)
+#   backslash    (\\)
+#   comma        (,)
+#   period       (.)
+#   dot          (.)
+#   semicolon    (;)
+#   apostrophe   (')
+#   quote        (")
+#   minus        (-)
+#   equal        (=)
+#   plus         (+)
+#   grave        (`)
+#   backtick     (`)
+#
+# Bracket Keys
+#
+#   leftbracket   ([)
+#   rightbracket  (])
+#   leftbrace     ({)
+#   rightbrace    (})
+#   leftparen     (()
+#   rightparen    ())
+#
+# Keypad Keys
+#
+#   kp_enter
+#   kp_add
+#   kp_subtract
+#   kp_multiply
+#   kp_divide
+#   kp_decimal
+#
+# Single Character Keys
+# ---------------------
+#
+# Any single printable character can also be used:
+#
+#   a-z
+#   A-Z
+#   0-9
+#   /
+#   \\
+#   [
+#   ]
+#   .
+#   ,
+#   ;
+#   '
+#   -
+#   =
+#
+# Missing values automatically fall back
+# to OmniGlyph's built-in defaults.
 
 [shortcuts]
 
 # Quit OmniGlyph
 quit = "ctrl+q"
 
-# Focus the search bar
+# Focus search bar
 focus_search = "slash"
 
 # Toggle category bar
-toggle_categories = "c"
+toggle_categories = "tab"
 
 # Toggle sidebar
-toggle_sidebar = "s"
+toggle_sidebar = "ctrl+b"
 
 # Open history view
 history = "ctrl+h"
@@ -54,8 +150,8 @@ history = "ctrl+h"
 close_sidebar = "escape"
 
 # Navigate categories
-next_category = "]"
-prev_category = "["
+next_category = "pagedown"
+prev_category = "pageup"
 
 # Sidebar navigation
 sidebar_next = "down"
@@ -65,9 +161,9 @@ sidebar_activate = "return"
 # Copy first visible symbol
 copy_first = "ctrl+return"
 
-# Vim-style scrolling
-scroll_down = "j"
-scroll_up = "k"
+# Scroll symbol grid
+scroll_down = "down"
+scroll_up = "up"
 
 # Reload active collection
 reload_collection = "ctrl+r"
@@ -76,6 +172,9 @@ reload_collection = "ctrl+r"
 
 # hide | quit
 esc_action = "hide"
+
+# system | light | dark
+theme = "system"
 
 # Hide window after copying a symbol
 close_on_copy = true
@@ -133,22 +232,65 @@ DEFAULT_DATA = {
 }
 
 KEY_DISPLAY = {
+    # Modifiers
+    "ctrl": "Ctrl",
+    "shift": "Shift",
+    "alt": "Alt",
+    "super": "Super",
+    # Symbols
     "slash": "/",
-    "escape": "Esc",
-    "return": "Enter",
-    "enter": "Enter",
-    "right": "→",
-    "left": "←",
+    "backslash": "\\",
+    "comma": ",",
+    "period": ".",
+    "dot": ".",
+    "semicolon": ";",
+    "apostrophe": "'",
+    "quote": '"',
+    "minus": "-",
+    "equal": "=",
+    "plus": "+",
+    "grave": "`",
+    "backtick": "`",
+    # Brackets
+    "leftbracket": "[",
+    "rightbracket": "]",
+    "leftbrace": "{",
+    "rightbrace": "}",
+    "leftparen": "(",
+    "rightparen": ")",
+    # Navigation
     "up": "↑",
     "down": "↓",
-    "tab": "Tab",
-    "space": "Space",
-    "backspace": "Backspace",
-    "delete": "Del",
+    "left": "←",
+    "right": "→",
     "home": "Home",
     "end": "End",
     "pageup": "PgUp",
     "pagedown": "PgDn",
+    # Editing
+    "tab": "Tab",
+    "space": "Space",
+    "escape": "Esc",
+    "return": "Enter",
+    "enter": "Enter",
+    "backspace": "Backspace",
+    "delete": "Del",
+    "insert": "Ins",
+    # Lock keys
+    "capslock": "Caps Lock",
+    "numlock": "Num Lock",
+    "scrolllock": "Scroll Lock",
+    # Misc
+    "menu": "Menu",
+    "printscreen": "PrtSc",
+    "pause": "Pause",
+    # Keypad
+    "kp_enter": "Num Enter",
+    "kp_add": "Num +",
+    "kp_subtract": "Num -",
+    "kp_multiply": "Num *",
+    "kp_divide": "Num /",
+    "kp_decimal": "Num .",
 }
 
 
@@ -167,12 +309,6 @@ class Config:
 
         self.data = self._load_with_defaults()
 
-    def _deep_copy(self, data):
-        return {
-            key: self._deep_copy(value) if isinstance(value, dict) else value
-            for key, value in data.items()
-        }
-
     def _merge(self, base, override):
         for key, value in override.items():
             if key in base and isinstance(base[key], dict) and isinstance(value, dict):
@@ -184,13 +320,13 @@ class Config:
 
     def _load_with_defaults(self):
         try:
-            with open(self.config_file, "rb") as f:
+            with self.config_file.open("rb") as f:
                 user_data = tomllib.load(f)
-        except Exception:
-            return self._deep_copy(DEFAULT_DATA)
+        except (FileNotFoundError, tomllib.TOMLDecodeError):
+            return deepcopy(DEFAULT_DATA)
 
         return self._merge(
-            self._deep_copy(DEFAULT_DATA),
+            deepcopy(DEFAULT_DATA),
             user_data,
         )
 
@@ -218,19 +354,16 @@ class Config:
         if not raw:
             return ""
 
-        result = []
+        parts = []
 
         for part in raw.split("+"):
             part_lower = part.lower()
 
-            if part_lower in ("ctrl", "shift", "alt", "super"):
-                result.append(part_lower.capitalize())
-            else:
-                result.append(
-                    KEY_DISPLAY.get(
-                        part_lower,
-                        part.upper() if len(part) == 1 else part.capitalize(),
-                    )
+            parts.append(
+                KEY_DISPLAY.get(
+                    part_lower,
+                    part.upper() if len(part) == 1 else part.capitalize(),
                 )
+            )
 
-        return "+".join(result)
+        return "+".join(parts)
