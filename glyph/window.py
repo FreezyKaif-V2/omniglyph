@@ -109,6 +109,9 @@ class AppWindow(Adw.ApplicationWindow):
         self.search.grab_focus()
         self.search.select_region(0, len(self.search.get_text()))
 
+    def _unfocus_search(self):
+        self.set_focus(None)
+
     def _match(self, keyval, pure_mods, name, default=""):
         k, m = _parse_shortcut(self.config.get("shortcuts", name, default=default))
 
@@ -130,8 +133,22 @@ class AppWindow(Adw.ApplicationWindow):
         sidebar_open = self.char_view.side_bar.is_open()
 
         if sidebar_open:
-            if self._match(keyval, pure_mods, "toggle_sidebar", "s"):
+            if self._match(keyval, pure_mods, "toggle_sidebar", "ctrl+b"):
                 self.char_view.toggle_side_bar()
+                self._focus_search()
+                return True
+
+            if self._match(keyval, pure_mods, "sidebar_close", "return"):
+                self.char_view.toggle_side_bar()
+                self._focus_search()
+                return True
+
+            if self._match(keyval, pure_mods, "sidebar_next", "down"):
+                self.char_view.side_bar.select_next_collection()
+                return True
+
+            if self._match(keyval, pure_mods, "sidebar_prev", "up"):
+                self.char_view.side_bar.select_prev_collection()
                 return True
 
             return False
@@ -143,17 +160,19 @@ class AppWindow(Adw.ApplicationWindow):
             self._focus_search()
             return True
 
-        if self._match(keyval, pure_mods, "toggle_sidebar", "s") and not search_focused:
+        if (
+            self._match(keyval, pure_mods, "toggle_sidebar", "ctrl+b")
+            and not search_focused
+        ):
+            self._unfocus_search()
             self.char_view.toggle_side_bar()
-            first_name = COLLECTIONS[0]["name"]
-            self.char_view.side_bar._buttons[first_name].grab_focus()
             return True
 
-        if self._match(keyval, pure_mods, "next_category", "]") and not search_focused:
+        if self._match(keyval, pure_mods, "next_category", "l") and not search_focused:
             self.char_view.select_next_category()
             return True
 
-        if self._match(keyval, pure_mods, "prev_category", "[") and not search_focused:
+        if self._match(keyval, pure_mods, "prev_category", "h") and not search_focused:
             self.char_view.select_prev_category()
             return True
 
@@ -169,7 +188,7 @@ class AppWindow(Adw.ApplicationWindow):
             )
             return True
 
-        if self._match(keyval, pure_mods, "copy_first", "ctrl+return"):
+        if self._match(keyval, pure_mods, "copy_first", "return"):
             self.char_view.copy_first_symbol()
             return True
 
@@ -194,10 +213,6 @@ class AppWindow(Adw.ApplicationWindow):
 
         if self._match(keyval, pure_mods, "quit", "ctrl+q"):
             self._close_window()
-            return True
-
-        if self._match(keyval, pure_mods, "toggle_categories", "c"):
-            self.char_view.category_bar.category_buttons[None].grab_focus()
             return True
 
         return False

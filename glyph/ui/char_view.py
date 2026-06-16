@@ -128,7 +128,7 @@ class CharView(Gtk.Box):
         self.category_bar.rebuild(self.entries["categories"])
         self.category_bar.deactivate_history()
         self._apply_filter()
-        self.side_bar.set_reveal_child(False)
+        self.side_bar.set_reveal_child(True)
 
     def load_collection(self, loader_name):
         from db.loader import CollectionLoader
