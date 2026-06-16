@@ -60,9 +60,7 @@ def setup_nerd_font_actions(app):
 
 
 def notify_if_nerd_font_missing(app):
-    print("NERD FONT NOTIFICATION CHECK")
-    print(type(app))
-    # if has_nerd_font():
-    #     return
+    if has_nerd_font():
+        return
 
     _show_nerd_font_notification(app)
