@@ -193,3 +193,30 @@ class SideBar(Gtk.Revealer):
 
     def is_open(self):
         return self.get_reveal_child()
+
+    def select_next_collection(self):
+        print("SIDE_BAR_NEXT")
+        self._step_sidebar(+1)
+
+    def select_prev_collection(self):
+        print("SIDE_BAR_PREV")
+        self._step_sidebar(-1)
+
+    def _step_sidebar(self, direction):
+        names = [c["name"] for c in COLLECTIONS]
+
+        active_name = None
+
+        for name, btn in self._buttons.items():
+            if btn is self._active_btn:
+                active_name = name
+                break
+
+        if active_name is None:
+            return
+
+        idx = names.index(active_name)
+
+        next_name = names[(idx + direction) % len(names)]
+
+        self._buttons[next_name].set_active(True)
