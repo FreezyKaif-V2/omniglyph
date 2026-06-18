@@ -3,8 +3,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Adw, Gio, Gtk
 from constants import VERSION
+from gi.repository import Adw, Gio, Gtk
 
 
 class AppHeader(Gtk.HeaderBar):

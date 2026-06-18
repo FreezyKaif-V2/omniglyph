@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+
 from services.notification import notify_if_nerd_font_missing
 
 

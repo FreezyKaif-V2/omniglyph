@@ -2,12 +2,13 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Gtk, Gio, GLib, Gdk
-from utils.config import Config
-from ui.side_bar import SideBar, COLLECTIONS
-from ui.category_bar import CategoryBar
-from ui.symbol_grid import SymbolGrid
+from gi.repository import Gdk, Gio, GLib, Gtk
 from services.history import HistoryService
+from utils.config import Config
+
+from ui.category_bar import CategoryBar
+from ui.side_bar import SideBar
+from ui.symbol_grid import SymbolGrid
 
 _config = Config()
 _history = HistoryService()

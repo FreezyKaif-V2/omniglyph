@@ -1,6 +1,6 @@
+import tomllib
 from copy import deepcopy
 from pathlib import Path
-import tomllib
 
 from gi.repository import GLib
 

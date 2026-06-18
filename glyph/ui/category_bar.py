@@ -2,7 +2,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Gtk, GLib
+from gi.repository import GLib, Gtk
 from utils.config import Config
 
 _config = Config()
