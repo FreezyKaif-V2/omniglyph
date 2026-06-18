@@ -3,7 +3,7 @@
 
 ### A fast emoji and Unicode symbol picker for Linux built with GTK4 and Python.
 
-Browse, search, and copy emojis, symbols, emoticons, arrows, currency signs, mathematical symbols, and more from a lightweight overlay window.
+Browse, search, and copy emojis, symbols, emoticons, arrows, currency signs, mathematical symbols, Nerd Font icons, and more from a lightweight overlay window.
 
 ---
 
@@ -25,7 +25,14 @@ Browse, search, and copy emojis, symbols, emoticons, arrows, currency signs, mat
 
 * Fast emoji and Unicode symbol search
 * Search by name, keywords, aliases, and Unicode values
+* Full keyboard navigation
+* Configurable keyboard shortcuts
+* Persistent symbol history and recents
+* Instant clipboard copy
+* Automatic update notifications
+* Nerd Font icon support with automatic detection
 * Sidebar navigation for multiple built-in collections
+
   * Emojis
   * Emoticons
   * Arrows
@@ -33,9 +40,23 @@ Browse, search, and copy emojis, symbols, emoticons, arrows, currency signs, mat
   * Currency symbols
   * Special symbols
   * Hieroglyphs
+  * Nerd Fonts
 * Category and subcategory browsing
-* Instant clipboard copy
 * Collection selection from the command line
+
+## Configuration
+
+OmniGlyph stores user configuration in:
+
+```text
+~/.config/omniglyph/config.toml
+```
+
+User settings and notification preferences:
+
+```text
+~/.config/omniglyph/settings.json
+```
 
 ## Installation
 
@@ -69,6 +90,7 @@ omniglyph --math
 omniglyph --currency
 omniglyph --special
 omniglyph --hieroglyphs
+omniglyph --nerd
 ```
 
 ## Building from Source
