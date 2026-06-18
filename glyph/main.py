@@ -11,8 +11,9 @@ gi.require_version("Gtk4LayerShell", "1.0")
 from constants import *
 from db.loader import CollectionLoader
 from gi.repository import Adw, Gio
-from ui import *
 from services.notification import *
+from ui import *
+from utils.settings import load_settings
 
 
 class MyApp(Adw.Application):
@@ -34,9 +35,10 @@ class MyApp(Adw.Application):
         return getattr(CollectionLoader(self), loader_name)()
 
     def do_activate(self):
-        setup_nerd_font_actions(self)
         setup_update_notifications(self)
+        load_settings()
         check_for_updates_async(self)
+        setup_nerd_font_actions(self)
 
     def do_command_line(self, command_line):
         raw = command_line.get_arguments()[1:]

@@ -3,13 +3,18 @@ import threading
 import urllib.request
 import webbrowser
 
+from constants import VERSION
 from gi.repository import Gio, GLib
-
-from constants import APP_ID, VERSION
+from utils.settings import (
+    get_setting,
+    set_setting,
+)
 
 GITHUB_API = "https://api.github.com/repos/pshycodr/omniglyph/releases/latest"
 
 LATEST_RELEASE_URL = "https://github.com/pshycodr/omniglyph/releases/latest"
+
+LATEST_AVAILABLE_VERSION = None
 
 
 def _parse_version(version: str) -> tuple:
@@ -28,6 +33,11 @@ def _show_update_notification(app, latest_version):
             "app.open-release",
         )
 
+        notification.add_button(
+            "Don't Show Again",
+            "app.dismiss-update-notification",
+        )
+
         app.send_notification(
             "omniglyph-update",
             notification,
@@ -40,6 +50,8 @@ def _show_update_notification(app, latest_version):
 
 
 def _check_for_updates(app):
+    global LATEST_AVAILABLE_VERSION
+
     try:
         request = urllib.request.Request(
             GITHUB_API,
@@ -52,33 +64,56 @@ def _check_for_updates(app):
         ) as response:
             data = json.loads(response.read().decode("utf-8"))
 
-        latest_version = data["tag_name"]
+        latest_version = data["tag_name"].lstrip("v")
+
+        if get_setting("dismissed_update_version") == latest_version:
+            return
 
         if _parse_version(latest_version) > _parse_version(VERSION):
+            LATEST_AVAILABLE_VERSION = latest_version
+
             GLib.idle_add(
                 _show_update_notification,
                 app,
-                latest_version.lstrip("v"),
+                latest_version,
             )
 
     except Exception:
-        # Fail silently
         pass
 
 
 def setup_update_notifications(app):
     try:
-        action = Gio.SimpleAction.new(
+        open_action = Gio.SimpleAction.new(
             "open-release",
             None,
         )
 
-        action.connect(
+        open_action.connect(
             "activate",
             lambda *_: webbrowser.open(LATEST_RELEASE_URL),
         )
 
-        app.add_action(action)
+        app.add_action(open_action)
+
+        dismiss_action = Gio.SimpleAction.new(
+            "dismiss-update-notification",
+            None,
+        )
+
+        dismiss_action.connect(
+            "activate",
+            lambda *_: (
+                set_setting(
+                    "dismissed_update_version",
+                    LATEST_AVAILABLE_VERSION,
+                )
+                if LATEST_AVAILABLE_VERSION
+                else None
+            ),
+        )
+
+        app.add_action(dismiss_action)
 
     except Exception:
         pass

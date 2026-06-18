@@ -1,6 +1,10 @@
-from gi.repository import Gio, PangoCairo
-
 import webbrowser
+
+from gi.repository import Gio, PangoCairo
+from utils.settings import (
+    get_setting,
+    set_setting,
+)
 
 NERD_FONT_URL = "https://www.nerdfonts.com/"
 
@@ -30,6 +34,11 @@ def _show_nerd_font_notification(app):
             "app.open-nerd-fonts",
         )
 
+        notification.add_button(
+            "Don't Show Again",
+            "app.dismiss-nerd-font-notification",
+        )
+
         app.send_notification(
             "omniglyph-nerd-font",
             notification,
@@ -43,17 +52,32 @@ def _show_nerd_font_notification(app):
 
 def setup_nerd_font_actions(app):
     try:
-        action = Gio.SimpleAction.new(
+        open_action = Gio.SimpleAction.new(
             "open-nerd-fonts",
             None,
         )
 
-        action.connect(
+        open_action.connect(
             "activate",
             lambda *_: webbrowser.open(NERD_FONT_URL),
         )
 
-        app.add_action(action)
+        app.add_action(open_action)
+
+        dismiss_action = Gio.SimpleAction.new(
+            "dismiss-nerd-font-notification",
+            None,
+        )
+
+        dismiss_action.connect(
+            "activate",
+            lambda *_: set_setting(
+                "hide_nerd_font_notification",
+                True,
+            ),
+        )
+
+        app.add_action(dismiss_action)
 
     except Exception:
         pass
@@ -61,6 +85,9 @@ def setup_nerd_font_actions(app):
 
 def notify_if_nerd_font_missing(app):
     if has_nerd_font():
+        return
+
+    if get_setting("hide_nerd_font_notification"):
         return
 
     _show_nerd_font_notification(app)
