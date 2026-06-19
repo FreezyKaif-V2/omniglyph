@@ -43,9 +43,11 @@ jobs:
                 build-essential \
                 pkg-config \
                 meson \
-                ninja-build && \
-              pip install --upgrade pip setuptools wheel meson && \
-              pip install rapidfuzz pygobject nuitka ruff pre-commit tomli-w
+                ninja-build \
+                cmake && \
+              pip install --upgrade pip setuptools wheel meson cmake && \
+              pip install rapidfuzz nuitka ruff pre-commit tomli-w && \
+              pip install pygobject --no-cache-dir
             "
       
       - name: Build with Nuitka (ARM64)
@@ -68,9 +70,10 @@ jobs:
                 build-essential \
                 pkg-config \
                 meson \
-                ninja-build && \
-              pip install --upgrade pip setuptools wheel meson && \
-              pip install rapidfuzz pygobject nuitka && \
+                ninja-build \
+                cmake && \
+              pip install --upgrade pip setuptools wheel meson cmake && \
+              pip install rapidfuzz pygobject nuitka --no-cache-dir && \
               python -m nuitka --onefile --follow-imports --platform-neutered glyph/__main__.py -o omniglyph
             "
       
@@ -97,9 +100,12 @@ jobs:
                 gir1.2-gtk-4.0 \
                 python3-gi \
                 python3-gi-cairo \
-                gobject-introspection && \
-              pip install --upgrade pip setuptools meson && \
-              pip install rapidfuzz pygobject && \
+                gobject-introspection \
+                meson \
+                ninja-build \
+                cmake && \
+              pip install --upgrade pip setuptools meson cmake && \
+              pip install rapidfuzz pygobject --no-cache-dir && \
               python -c 'from glyph import __version__; print(\"OmniGlyph installed successfully!\")' || \
               python -c 'import sys; print(\"Python environment ready for OmniGlyph\")'
             "
