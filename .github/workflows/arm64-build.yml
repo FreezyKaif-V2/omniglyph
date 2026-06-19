@@ -50,7 +50,7 @@ jobs:
               apt-get install -y \
                 libgtk-4-dev \
                 libglib2.0-dev \
-                libgobject-introspection1 \
+                gir1.2-gtk-4.0 \
                 python3-gi \
                 python3-gi-cairo \
                 gobject-introspection \
@@ -72,7 +72,7 @@ jobs:
               apt-get install -y \
                 libgtk-4-dev \
                 libglib2.0-dev \
-                libgobject-introspection1 \
+                gir1.2-gtk-4.0 \
                 python3-gi \
                 python3-gi-cairo \
                 gobject-introspection \
@@ -101,7 +101,7 @@ jobs:
               apt-get install -y \
                 libgtk-4-dev \
                 libglib2.0-dev \
-                libgobject-introspection1 \
+                gir1.2-gtk-4.0 \
                 python3-gi \
                 python3-gi-cairo \
                 gobject-introspection && \
