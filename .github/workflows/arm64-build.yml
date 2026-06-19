@@ -43,7 +43,8 @@ jobs:
                 build-essential \
                 pkg-config \
                 meson \
-                ninja-build && \
+                ninja-build \
+                patchelf
               export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig && \
               pip install --upgrade pip setuptools wheel meson && \
               pip install rapidfuzz nuitka ruff pre-commit tomli-w && \
