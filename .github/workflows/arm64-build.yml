@@ -35,14 +35,16 @@ jobs:
               apt-get install -y \
                 libgtk-4-dev \
                 libglib2.0-dev \
+                libgirepository1.0-dev \
                 gir1.2-gtk-4.0 \
                 python3-gi \
                 python3-gi-cairo \
                 gobject-introspection \
                 build-essential \
-                pkg-config && \
-              pip install --upgrade pip setuptools wheel && \
-              pip install -e '.[dev]' --no-build-isolation 2>&1 || \
+                pkg-config \
+                meson \
+                ninja-build && \
+              pip install --upgrade pip setuptools wheel meson && \
               pip install rapidfuzz pygobject nuitka ruff pre-commit tomli-w
             "
       
@@ -58,13 +60,16 @@ jobs:
               apt-get install -y \
                 libgtk-4-dev \
                 libglib2.0-dev \
+                libgirepository1.0-dev \
                 gir1.2-gtk-4.0 \
                 python3-gi \
                 python3-gi-cairo \
                 gobject-introspection \
                 build-essential \
-                pkg-config && \
-              pip install --upgrade pip setuptools wheel && \
+                pkg-config \
+                meson \
+                ninja-build && \
+              pip install --upgrade pip setuptools wheel meson && \
               pip install rapidfuzz pygobject nuitka && \
               python -m nuitka --onefile --follow-imports --platform-neutered glyph/__main__.py -o omniglyph
             "
@@ -88,11 +93,12 @@ jobs:
               apt-get install -y \
                 libgtk-4-dev \
                 libglib2.0-dev \
+                libgirepository1.0-dev \
                 gir1.2-gtk-4.0 \
                 python3-gi \
                 python3-gi-cairo \
                 gobject-introspection && \
-              pip install --upgrade pip setuptools && \
+              pip install --upgrade pip setuptools meson && \
               pip install rapidfuzz pygobject && \
               python -c 'from glyph import __version__; print(\"OmniGlyph installed successfully!\")' || \
               python -c 'import sys; print(\"Python environment ready for OmniGlyph\")'
