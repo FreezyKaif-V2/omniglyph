@@ -74,9 +74,19 @@ jobs:
               export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig && \
               pip install --upgrade pip setuptools wheel meson && \
               pip install rapidfuzz pygobject nuitka --no-cache-dir && \
-              python -m nuitka --onefile --follow-imports --platform-neutered glyph/__main__.py -o omniglyph
+              python -m nuitka \
+                --onefile \
+                --follow-imports \
+                --include-package=gi \
+                --output-filename=omniglyph.bin \
+                glyph/__main__.py
             "
-      
+
+      - name: Verify build output
+        run: |
+          ls -lah
+          find . -name "omniglyph*"
+          
       - name: Upload ARM64 build artifact
         uses: actions/upload-artifact@v4
         with:
