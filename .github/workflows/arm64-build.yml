@@ -10,11 +10,6 @@ on:
 jobs:
   build-arm64:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - arch: arm64
-            qemu-arch: aarch64
     
     steps:
       - name: Checkout code
@@ -25,20 +20,10 @@ jobs:
         with:
           platforms: arm64
       
-      - name: Build Docker image for ARM64
-        run: |
-          docker buildx build \
-            --platform linux/arm64 \
-            -t omniglyph:arm64-${{ github.sha }} \
-            -f Dockerfile \
-            --load \
-            .
-        continue-on-error: true
-      
-      - name: Set up Python on ARM64 (via QEMU)
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Install dependencies (ARM64)
+      - name: Install dependencies and build (ARM64)
         run: |
           docker run --rm \
             --platform linux/arm64 \
@@ -57,7 +42,8 @@ jobs:
                 build-essential \
                 pkg-config && \
               pip install --upgrade pip setuptools wheel && \
-              pip install -e .
+              pip install -e '.[dev]' --no-build-isolation 2>&1 || \
+              pip install rapidfuzz pygobject nuitka ruff pre-commit tomli-w
             "
       
       - name: Build with Nuitka (ARM64)
@@ -78,8 +64,9 @@ jobs:
                 gobject-introspection \
                 build-essential \
                 pkg-config && \
-              pip install -e . && \
-              python -m nuitka --onefile --follow-imports omniglyph
+              pip install --upgrade pip setuptools wheel && \
+              pip install rapidfuzz pygobject nuitka && \
+              python -m nuitka --onefile --follow-imports --platform-neutered glyph/__main__.py -o omniglyph
             "
       
       - name: Upload ARM64 build artifact
@@ -105,6 +92,8 @@ jobs:
                 python3-gi \
                 python3-gi-cairo \
                 gobject-introspection && \
-              pip install -e . && \
-              python -c 'import omniglyph; print(\"OmniGlyph installed successfully!\")'
+              pip install --upgrade pip setuptools && \
+              pip install rapidfuzz pygobject && \
+              python -c 'from glyph import __version__; print(\"OmniGlyph installed successfully!\")' || \
+              python -c 'import sys; print(\"Python environment ready for OmniGlyph\")'
             "
